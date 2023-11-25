@@ -1,0 +1,240 @@
+---
+title: "GearGlide - Two Wheel Innovation "
+author: "Kanika Varandani"
+date: "2023-11-05"
+output: html_document
+---
+# Overview
+###### This capstone project delves into Data Analysis for Cyclistic, a Chicago-based bike-share company. The choice of this project is rooted in my fascination with sustainable transportation and for exploring recreational biking patterns. 
+###### This project offers an ideal canvas to showcase my adeptness in data analysis and visualization within a professional context.
+###### Executed in R Studio and further analyzed in Tableau, furnishing actionable insights to drive annual memberships and fortify the company's enduring success.
+
+# Key outcomes:
+###### 1) Usage Patterns: How do casual riders and annual members differ in their utilization of Cyclistic bikes?
+###### 2) Conversion Strategies: What strategies can be employed to convert casual riders into annual members?
+###### 3) Data-Driven Recommendations: How can data insights inform the design of a successful marketing strategy?
+###### 4) Executive Approval: What data-backed evidence will be crucial in gaining approval for proposed marketing recommendations?
+
+
+### Installation
+```{r}
+#install.packages("tidyverse")
+#install.packages("lubridate")
+#install.packages("ggplot")
+```
+
+### Libraries
+```{r}
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+```
+### Get Set Go!
+```{r}
+getwd()
+setwd("/Users/kanikavarandani/Desktop/The_Cyclist_data/2020_ST_Q1/Capstone project 2020 data")
+```
+# STEP 1: Data Collection
+```{r}
+q1_2020 <- read_csv("Trips_2020_Q1.csv")
+```
+# STEP 2: Data Wrangling
+```{r}
+colnames(q1_2020)
+```
+### Inspection
+#### Dataframes and inconguencies
+```{r}
+str(q1_2020)
+```
+### Convesion
+#### ride_id and rideable_type to "character"
+```{r}
+q1_2020 <-  mutate(q1_2020, ride_id = as.character(ride_id)
+                   ,rideable_type = as.character(rideable_type)) 
+
+```
+### Removal 
+#### Latitude, Longitude, birthyear and gender. 
+```{r}
+q1_2020 <- q1_2020 %>%  
+  select(-c(start_lat, start_lng, end_lat, end_lng,))
+```
+# STEP 3: Data clean up and preparation for Analysis
+```{r}
+colnames(q1_2020) 
+nrow(q1_2020)  
+dim(q1_2020)  
+head(q1_2020)  
+str(q1_2020)  
+summary(q1_2020)
+```
+### Bob the Builder
+#### Fixing the problems
+```{r}
+# Begin by seeing how many observations fall under each usertype
+table(q1_2020$member_casual)
+```
+### Add ons!
+#### Date, Month, Day, and Year
+```{r}
+q1_2020$date <- as.Date(q1_2020$started_at)
+q1_2020$month <- format(as.Date(q1_2020$date), "%m")
+q1_2020$day <- format(as.Date(q1_2020$date), "%d")
+q1_2020$year <- format(as.Date(q1_2020$date), "%Y")
+q1_2020$day_of_week <- format(as.Date(q1_2020$date), "%A")
+```
+### Long trip or Short?
+#### Add a "ride_length" 
+```{r}
+q1_2020$ride_length <- difftime(q1_2020$ended_at,q1_2020$started_at)
+```
+### Inspection
+```{r}
+str(q1_2020)
+```
+### Conversion
+#### "ride_length" from Factor <- numeric
+```{r}
+is.factor(q1_2020$ride_length)
+q1_2020$ride_length <- as.numeric(as.character(q1_2020$ride_length))
+is.numeric(q1_2020$ride_length)
+```
+### Removal - "Bad" data
+```{r}
+# The dataframe includes a few hundred entries when bikes were taken out of docks and checked for quality by Divvy or ride_length was negative
+q1_2020_v2 <- q1_2020[!(q1_2020$start_station_name == "HQ QR" | q1_2020$ride_length<0),]
+```
+# STEP 4: Conduct - Descriptive Analysis
+```{r}
+# Descriptive analysis on ride_length (all figures in seconds)
+mean(q1_2020_v2$ride_length) #straight average (total ride length / rides)
+median(q1_2020_v2$ride_length) #midpoint number in the ascending array of ride lengths
+max(q1_2020_v2$ride_length) #longest ride
+min(q1_2020_v2$ride_length) #shortest ride
+```
+### Summary
+```{r}
+summary(q1_2020_v2$ride_length)
+```
+### Comparison
+#### Members OR casual users
+```{r}
+aggregate(q1_2020_v2$ride_length ~ q1_2020_v2$member_casual, FUN = mean)
+aggregate(q1_2020_v2$ride_length ~ q1_2020_v2$member_casual, FUN = median)
+aggregate(q1_2020_v2$ride_length ~ q1_2020_v2$member_casual, FUN = max)
+aggregate(q1_2020_v2$ride_length ~ q1_2020_v2$member_casual, FUN = min)
+```
+### Members vs casual users
+#### Average ride time/each day 
+```{r}
+aggregate(q1_2020_v2$ride_length ~ q1_2020_v2$member_casual + q1_2020_v2$day_of_week, FUN = mean)
+```
+### Days of the week are out of order!! 
+#### Bob the builder at rescue - Let's fix it
+```{r}
+q1_2020_v2$day_of_week <- ordered(q1_2020_v2$day_of_week, levels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+```
+### Average ride time / each day
+```{r}
+aggregate(q1_2020_v2$ride_length ~ q1_2020_v2$member_casual + q1_2020_v2$day_of_week, FUN = mean)
+```
+### Analysis
+#### Ridership data - Type and Weekday
+```{r}
+q1_2020_v2 %>% 
+  mutate(weekday = wday(started_at,label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>%  
+  summarise(number_of_rides = n()			
+  ,average_duration = mean(ride_length)) %>% 		
+  arrange(member_casual, weekday)	
+```
+### Visualization
+#### Number of rides by rider type
+```{r}
+q1_2020_v2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+
+### Visualization 
+#### Average duration
+```{r}
+q1_2020_v2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge")
+
+```
+
+
+# STEP 5: Exporting
+### Further Analysis
+```{r}
+# Create a csv file that we will visualize in Excel, Tableau, or my presentation software
+counts <- aggregate(q1_2020_v2$ride_length ~ q1_2020_v2$member_casual + q1_2020_v2$day_of_week, FUN = mean)
+write.csv(counts, file = '/Users/kanikavarandani/Desktop/The_Cyclist_data/avg_ride_length.csv')
+```
+### Day's prefrence on rides
+```{r}
+q1_2020_v3 <- q1_2020_v2 %>%  
+  select(-c(rideable_type, started_at, ended_at, start_station_name,start_station_id, end_station_name, end_station_id,date,month,day,year,ride_length))
+```
+### Exporting
+```{r}
+write.table(x=q1_2020_v3,
+            file = "q1_2020_v3.csv",
+            sep = ",",
+            row.names = TRUE,
+            col.names = TRUE)
+```
+### Month's prefrence on rides
+```{r}
+q1_2020_v4 <- q1_2020_v2 %>%  
+  select(-c(rideable_type, started_at, ended_at, start_station_name,start_station_id, end_station_name, end_station_id,date,day,year,ride_length))
+```
+### Exporting
+```{r}
+write.table(x=q1_2020_v4,
+            file = "q1_2020_v4.csv",
+            sep = ",",
+            row.names = TRUE,
+            col.names = TRUE)
+```
+##### Sampling Data
+```{r}
+q1_2020_v5 <- q1_2020_v4[sample(nrow(q1_2020_v4), 1000),]
+```
+### Exporting
+```{r}
+write.table(x=q1_2020_v5,
+            file = "q1_2020_v5.csv",
+            sep = ",",
+            row.names = TRUE,
+            col.names = TRUE)
+```
+```{r}
+write.table(x=counts,
+            file = "counts.csv",
+            sep = ",",
+            row.names = TRUE,
+            col.names = TRUE)
+```
+```{r}
+write.table(x=counts,
+            file = "counts2.csv",
+            sep = ",",
+            row.names = TRUE,
+            col.names = TRUE)
+```
+
